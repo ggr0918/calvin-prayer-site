@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>기도 제목을 나눠요</title>
+<title>서로 기도제목을 나눠봐요</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,sans-serif;background:#f5f1ea;color:#333}
@@ -47,8 +47,14 @@ padding:20px
 </div>
 
 <div class="container">
-<h1>🙏 우리 같이 기도 드려요</h1>
-<p>함께 공부하며 서로를 위해 기도 드립니다. 기도 제목을 나눠주세요. 문의는 이제호 학우에게</p>
+<h1>🙏 기도제목을 나눠봐요</h1>
+
+<div class="card" style="margin-bottom:20px">
+<h2>📢 공지사항</h2>
+<div id="noticeContent">공지사항이 없습니다.</div>
+</div>
+
+<p>함께 공부하며 서로를 위해 기도하는 공간입니다.</p>
 
 <div class="write-box">
 <input id="name" placeholder="이름 또는 닉네임">
@@ -73,6 +79,11 @@ padding:20px
 <div id="adminPanel" style="display:none">
 <h2>관리자 페이지</h2>
 <div id="adminList"></div>
+<hr>
+<h3>공지사항 수정</h3>
+<textarea id="noticeInput" placeholder="공지사항을 입력하세요"></textarea>
+<button class="main-btn" onclick="saveNotice()">공지 저장</button>
+
 </div>
 
 <button style="margin-top:12px;width:100%" onclick="closeAdmin()">닫기</button>
@@ -83,7 +94,7 @@ padding:20px
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
 getFirestore, collection, addDoc, onSnapshot,
-query, orderBy, deleteDoc, doc, updateDoc, increment
+query, orderBy, deleteDoc, doc, updateDoc, increment, setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -100,11 +111,11 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const prayerRef = collection(db, "prayers");
+const noticeRef = doc(db,"site","notice");
 
 let prayers = [];
 let currentPage = 1;
 const PER_PAGE = 10;
-const clickLocks = new Set();
 
 window.addPrayer = async function(){
 const name=document.getElementById("name").value.trim();
@@ -176,48 +187,38 @@ currentPage=page;
 render();
 }
 
-window.togglePray=async function(id){
-
-if(clickLocks.has(id)) return;
-clickLocks.add(id);
-
-try{
-
+window.togglePray=async function(id,count,liked){
 const ref=doc(db,"prayers",id);
-const key="pray_"+id;
-const alreadyLiked=localStorage.getItem(key)==="true";
 
-const btn=document.querySelector(`[onclick*="${id}"]`);
-if(btn){
-btn.disabled=true;
-btn.style.opacity="0.6";
-}
-
-if(alreadyLiked){
+if(liked){
 await updateDoc(ref,{prayCount:increment(-1)});
-localStorage.removeItem(key);
+localStorage.removeItem("pray_"+id);
 }else{
 await updateDoc(ref,{prayCount:increment(1)});
-localStorage.setItem(key,"true");
-}
-
-}catch(error){
-console.error(error);
-alert("처리 중 오류가 발생했습니다.");
-}finally{
-
-setTimeout(()=>{
-clickLocks.delete(id);
-
-const btn=document.querySelector(`[onclick*="${id}"]`);
-if(btn){
-btn.disabled=false;
-btn.style.opacity="1";
-}
-
-},700);
+localStorage.setItem("pray_"+id,"true");
 }
 }
+
+
+const noticeRef = doc(db,"site","notice");
+
+async function saveNotice(){
+const text=document.getElementById("noticeInput").value.trim();
+
+await setDoc(noticeRef,{
+content:text
+});
+
+alert("공지사항 저장 완료");
+}
+
+onSnapshot(noticeRef,(snap)=>{
+if(snap.exists()){
+document.getElementById("noticeContent").innerHTML=
+snap.data().content.replace(/\n/g,"<br>");
+}
+});
+
 
 onSnapshot(query(prayerRef, orderBy("createdAt","desc")), snap=>{
 prayers=snap.docs.map(doc=>({
