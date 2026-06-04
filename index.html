@@ -104,6 +104,7 @@ const prayerRef = collection(db, "prayers");
 let prayers = [];
 let currentPage = 1;
 const PER_PAGE = 10;
+const clickLocks = new Set();
 
 window.addPrayer = async function(){
 const name=document.getElementById("name").value.trim();
@@ -175,15 +176,46 @@ currentPage=page;
 render();
 }
 
-window.togglePray=async function(id,count,liked){
-const ref=doc(db,"prayers",id);
+window.togglePray=async function(id){
 
-if(liked){
+if(clickLocks.has(id)) return;
+clickLocks.add(id);
+
+try{
+
+const ref=doc(db,"prayers",id);
+const key="pray_"+id;
+const alreadyLiked=localStorage.getItem(key)==="true";
+
+const btn=document.querySelector(`[onclick*="${id}"]`);
+if(btn){
+btn.disabled=true;
+btn.style.opacity="0.6";
+}
+
+if(alreadyLiked){
 await updateDoc(ref,{prayCount:increment(-1)});
-localStorage.removeItem("pray_"+id);
+localStorage.removeItem(key);
 }else{
 await updateDoc(ref,{prayCount:increment(1)});
-localStorage.setItem("pray_"+id,"true");
+localStorage.setItem(key,"true");
+}
+
+}catch(error){
+console.error(error);
+alert("처리 중 오류가 발생했습니다.");
+}finally{
+
+setTimeout(()=>{
+clickLocks.delete(id);
+
+const btn=document.querySelector(`[onclick*="${id}"]`);
+if(btn){
+btn.disabled=false;
+btn.style.opacity="1";
+}
+
+},700);
 }
 }
 
