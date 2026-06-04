@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>서로 기도제목을 나눠봐요</title>
+<title>칼빈대학교 신학과 26학번 기도제목</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial,sans-serif;background:#f5f1ea;color:#333}
@@ -47,7 +47,7 @@ padding:20px
 </div>
 
 <div class="container">
-<h1>🙏 기도제목을 나눠봐요</h1>
+<h1>🙏 칼빈대학교 신학과 26학번 기도제목</h1>
 
 <div class="card" style="margin-bottom:20px">
 <h2>📢 공지사항</h2>
@@ -112,6 +112,7 @@ const db = getFirestore(app);
 
 const prayerRef = collection(db, "prayers");
 const noticeRef = doc(db,"site","notice");
+const clickLocks = new Set();
 
 let prayers = [];
 let currentPage = 1;
@@ -187,22 +188,29 @@ currentPage=page;
 render();
 }
 
-window.togglePray=async function(id,count,liked){
+window.togglePray=async function(id){
+if(clickLocks.has(id)) return;
+clickLocks.add(id);
+
+try{
 const ref=doc(db,"prayers",id);
+const key="pray_"+id;
+const liked = localStorage.getItem(key)==="true";
 
 if(liked){
 await updateDoc(ref,{prayCount:increment(-1)});
-localStorage.removeItem("pray_"+id);
+localStorage.removeItem(key);
 }else{
 await updateDoc(ref,{prayCount:increment(1)});
-localStorage.setItem("pray_"+id,"true");
+localStorage.setItem(key,"true");
+}
+} finally {
+setTimeout(()=>clickLocks.delete(id),700);
 }
 }
 
 
-const noticeRef = doc(db,"site","notice");
-
-async function saveNotice(){
+window.saveNotice = async function(){
 const text=document.getElementById("noticeInput").value.trim();
 
 await setDoc(noticeRef,{
