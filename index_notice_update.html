@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>칼빈대학교 신학과 26학번 기도제목</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f5f1ea;color:#333}
+.top-bar{display:flex;justify-content:flex-end;padding:20px}
+.admin-btn{background:#4b5d67;color:white;border:none;padding:10px 16px;border-radius:10px;cursor:pointer}
+.container{max-width:800px;margin:auto;padding:20px}
+.card,.write-box,.modal-content{
+background:#fff;padding:20px;border-radius:18px;
+box-shadow:0 4px 12px rgba(0,0,0,.08)
+}
+.write-box{margin-bottom:20px}
+input,textarea{
+width:100%;padding:14px;border:1px solid #ddd;
+border-radius:12px;margin-bottom:12px
+}
+textarea{height:120px;resize:none}
+button{
+border:none;border-radius:10px;padding:12px;cursor:pointer
+}
+.main-btn{width:100%;background:#7ea1b5;color:#fff}
+.prayer-list{display:flex;flex-direction:column;gap:16px}
+.card h3{margin:0}
+.date{font-size:13px;color:#777;margin:10px 0}
+.pray-btn{background:#f0b86e}
+.pagination{text-align:center;margin-top:20px}
+.page-btn{margin:0 5px}
+.modal{
+display:none;position:fixed;inset:0;
+background:rgba(0,0,0,.5);
+justify-content:center;align-items:center;
+padding:20px
+}
+.modal-content{max-width:500px;width:100%}
+.delete-btn{background:#d9534f;color:#fff}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+<button class="admin-btn" onclick="openAdmin()">관리자 페이지</button>
+</div>
+
+<div class="container">
+<h1>🙏 칼빈대학교 신학과 26학번 기도제목</h1>
+
+<div class="card" style="margin-bottom:20px">
+<h2>📢 공지사항</h2>
+<div id="noticeContent">공지사항이 없습니다.</div>
+</div>
+
+<p>함께 공부하며 서로를 위해 기도하는 공간입니다.</p>
+
+<div class="write-box">
+<input id="name" placeholder="이름 또는 닉네임">
+<textarea id="content" placeholder="기도제목을 작성해주세요"></textarea>
+<button class="main-btn" onclick="addPrayer()">기도제목 남기기</button>
+</div>
+
+<div id="prayerList" class="prayer-list"></div>
+<div id="pagination" class="pagination"></div>
+</div>
+
+<div id="adminModal" class="modal">
+<div class="modal-content">
+
+<div id="loginBox">
+<h2>관리자 로그인</h2>
+<input id="adminId" placeholder="아이디">
+<input id="adminPw" type="password" placeholder="비밀번호">
+<button class="main-btn" onclick="loginAdmin()">로그인</button>
+</div>
+
+<div id="adminPanel" style="display:none">
+<h2>관리자 페이지</h2>
+<div id="adminList"></div>
+<hr>
+<h3>공지사항 수정</h3>
+<textarea id="noticeInput" placeholder="공지사항을 입력하세요"></textarea>
+<button class="main-btn" onclick="saveNotice()">공지 저장</button>
+
+</div>
+
+<button style="margin-top:12px;width:100%" onclick="closeAdmin()">닫기</button>
+</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+getFirestore, collection, addDoc, onSnapshot,
+query, orderBy, deleteDoc, doc, updateDoc, increment, setDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyB0Ziy1ypYKji-XE4nWd5FmPPjIUdp0_o0",
+authDomain: "calvin-a2687.firebaseapp.com",
+projectId: "calvin-a2687",
+storageBucket: "calvin-a2687.firebasestorage.app",
+messagingSenderId: "455078258084",
+appId: "1:455078258084:web:508a8a21d06e2c67a24d31",
+measurementId: "G-P108ZGZ71R"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const prayerRef = collection(db, "prayers");
+const noticeRef = doc(db,"site","notice");
+
+let prayers = [];
+let currentPage = 1;
+const PER_PAGE = 10;
+
+window.addPrayer = async function(){
+const name=document.getElementById("name").value.trim();
+const content=document.getElementById("content").value.trim();
+
+if(!name || !content){
+alert("이름과 기도제목을 입력해주세요.");
+return;
+}
+
+await addDoc(prayerRef,{
+name,
+content,
+date:new Date().toLocaleDateString("ko-KR"),
+prayCount:0,
+createdAt:Date.now()
+});
+
+document.getElementById("name").value="";
+document.getElementById("content").value="";
+}
+
+function render(){
+const prayerList=document.getElementById("prayerList");
+prayerList.innerHTML="";
+
+const start=(currentPage-1)*PER_PAGE;
+const list=prayers.slice(start,start+PER_PAGE);
+
+list.forEach(p=>{
+const liked = localStorage.getItem("pray_"+p.id)==="true";
+
+const div=document.createElement("div");
+div.className="card";
+
+div.innerHTML=`
+<h3>🙏 ${p.name}</h3>
+<div class="date">작성일: ${p.date}</div>
+<p>${p.content}</p>
+<button class="pray-btn" onclick="togglePray('${p.id}', ${p.prayCount}, ${liked})">
+🙏 ${p.prayCount}
+</button>
+`;
+
+prayerList.appendChild(div);
+});
+
+renderPagination();
+}
+
+function renderPagination(){
+const total=Math.ceil(prayers.length/PER_PAGE);
+const el=document.getElementById("pagination");
+el.innerHTML="";
+
+if(currentPage>1){
+el.innerHTML += `<button class="page-btn" onclick="changePage(${currentPage-1})">이전</button>`;
+}
+
+el.innerHTML += ` ${currentPage} / ${Math.max(total,1)} `;
+
+if(currentPage<total){
+el.innerHTML += `<button class="page-btn" onclick="changePage(${currentPage+1})">다음</button>`;
+}
+}
+
+window.changePage=function(page){
+currentPage=page;
+render();
+}
+
+window.togglePray=async function(id,count,liked){
+const ref=doc(db,"prayers",id);
+
+if(liked){
+await updateDoc(ref,{prayCount:increment(-1)});
+localStorage.removeItem("pray_"+id);
+}else{
+await updateDoc(ref,{prayCount:increment(1)});
+localStorage.setItem("pray_"+id,"true");
+}
+}
+
+
+const noticeRef = doc(db,"site","notice");
+
+async function saveNotice(){
+const text=document.getElementById("noticeInput").value.trim();
+
+await setDoc(noticeRef,{
+content:text
+});
+
+alert("공지사항 저장 완료");
+}
+
+onSnapshot(noticeRef,(snap)=>{
+if(snap.exists()){
+document.getElementById("noticeContent").innerHTML=
+snap.data().content.replace(/\n/g,"<br>");
+}
+});
+
+
+onSnapshot(query(prayerRef, orderBy("createdAt","desc")), snap=>{
+prayers=snap.docs.map(doc=>({
+id:doc.id,
+...doc.data()
+}));
+render();
+renderAdminList();
+});
+
+window.openAdmin=function(){
+document.getElementById("adminModal").style.display="flex";
+}
+
+window.closeAdmin=function(){
+document.getElementById("adminModal").style.display="none";
+}
+
+window.loginAdmin=function(){
+const id=document.getElementById("adminId").value;
+const pw=document.getElementById("adminPw").value;
+
+if(id==="ggr3" && pw==="1504"){
+document.getElementById("loginBox").style.display="none";
+document.getElementById("adminPanel").style.display="block";
+renderAdminList();
+}else{
+alert("로그인 실패");
+}
+}
+
+function renderAdminList(){
+const adminList=document.getElementById("adminList");
+if(!adminList)return;
+
+adminList.innerHTML="";
+
+prayers.forEach(p=>{
+const div=document.createElement("div");
+div.className="card";
+div.style.marginTop="12px";
+div.innerHTML=`
+<h3>${p.name}</h3>
+<p>${p.content}</p>
+<button class="delete-btn" onclick="deletePrayer('${p.id}')">삭제</button>
+`;
+adminList.appendChild(div);
+});
+}
+
+window.deletePrayer=async function(id){
+if(confirm("삭제하시겠습니까?")){
+await deleteDoc(doc(db,"prayers",id));
+}
+}
+</script>
+
+</body>
+</html>
