@@ -611,24 +611,43 @@ document
 };
 
 window.loginAdmin =
-function(){
+async function(){
 
 const id =
 document
 .getElementById(
 "adminId"
-).value;
+).value.trim();
 
 const pw =
 document
 .getElementById(
 "adminPw"
-).value;
+).value.trim();
+
+const adminDoc =
+await getDoc(
+doc(
+db,
+"admin",
+"account"
+)
+);
+
+if(!adminDoc.exists()){
+alert(
+"관리자 정보 없음"
+);
+return;
+}
+
+const adminData =
+adminDoc.data();
 
 if(
-id==="ggr3"
+id === adminData.id
 &&
-pw==="1504"
+pw === adminData.password
 ){
 
 document
