@@ -505,9 +505,8 @@ const data =
 prayerDoc.data();
 
 const alreadyPrayed =
-data.votedUsers?.includes(
-deviceId
-);
+(data.votedUsers || [])
+.includes(deviceId);
 
 if(alreadyPrayed){
 
