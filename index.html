@@ -261,7 +261,9 @@ doc,
 updateDoc,
 increment,
 setDoc,
-getDoc
+getDoc,
+arrayUnion,
+arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -291,6 +293,16 @@ let currentPage = 1;
 
 const PER_PAGE = 10;
 
+const deviceId =
+localStorage.getItem("deviceId")
+||
+crypto.randomUUID();
+
+localStorage.setItem(
+"deviceId",
+deviceId
+);
+  
 window.addPrayer =
 async function(){
 
@@ -329,6 +341,7 @@ name,
 content,
 password,
 prayCount:0,
+votedUsers:[]
 date:new Date()
 .toLocaleDateString("ko-KR"),
 createdAt:Date.now()
@@ -479,47 +492,49 @@ clickLocks.add(id);
 try{
 
 const ref =
-doc(
-db,
-"prayers",
-id
-);
+doc(db,"prayers",id);
 
-const key =
-"pray_"+id;
+const prayerDoc =
+await getDoc(ref);
 
-const liked =
-localStorage
-.getItem(key)
-==="true";
-
-if(liked){
-
-await updateDoc(
-ref,
-{
-prayCount:
-increment(-1)
+if(!prayerDoc.exists()){
+return;
 }
+
+const data =
+prayerDoc.data();
+
+const alreadyPrayed =
+data.votedUsers?.includes(
+deviceId
 );
 
-localStorage
-.removeItem(key);
+if(alreadyPrayed){
+
+await updateDoc(ref,{
+prayCount:
+increment(-1),
+
+votedUsers:
+arrayRemove(deviceId)
+});
+
+alert(
+"기도했어요 취소"
+);
 
 }else{
 
-await updateDoc(
-ref,
-{
+await updateDoc(ref,{
 prayCount:
-increment(1)
-}
-);
+increment(1),
 
-localStorage
-.setItem(
-key,
-"true"
+votedUsers:
+arrayUnion(deviceId)
+});
+
+alert(
+"기도했어요 🙏"
 );
 }
 
